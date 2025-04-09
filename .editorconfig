@@ -1,1 +1,12 @@
 root = true
+
+[*]
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+indent_style = space
+insert_final_newline = true
+
+[*.cs, *.csproj]
+indent_size = 2
+tab_width = 2

@@ -101,11 +101,15 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Plugin.cs" />
-    <Compile Include="Configuration\PluginConfig.cs" />
+    <Compile Include="Chat/ChatListener.cs" />
+    <Compile Include="Chat/ChzzkChatMessage.cs" />
+    <Compile Include="Chat/ChzzkRawType.cs" />
+    <!-- <Compile Include="Chat/ChzzkSession.cs" /> -->
+    <Compile Include="Chat/GetChannelInfo.cs" />
+    <Compile Include="Configuration/PluginConfig.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ChatPlex.ChzzkController.cs" />
     <Compile Include="ChzzkService.cs" />
-    <Compile Include="ChzzkSession.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="manifest.json" />
