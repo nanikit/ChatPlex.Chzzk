@@ -1,15 +1,15 @@
 using CP_SDK;
+using CP_SDK.Chat;
 using CP_SDK.Chat.Services;
-using ChatPlexSDK_BS;
 using CP_SDK.Chat.Interfaces;
 using UnityEngine;
 using CP_SDK.Unity.Extensions;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
-using System.Linq;
 using ChatPlex.Chzzk.Chat;
-using System.Threading.Tasks;
-using CP_SDK.Chat;
 
 namespace ChatPlex.Chzzk
 {
@@ -105,12 +105,24 @@ namespace ChatPlex.Chzzk
 
     public bool IsConnectedAndLive()
     {
-      return false;
+      return true;
     }
 
-    private void ChzzkSocket_OnMessageReceived(object sender, (string, string) e)
+    private void ChzzkSocket_OnMessageReceived(object sender, ChzzkChatMessage e)
     {
-      m_OnTextMessageReceivedCallbacks.InvokeAll(this, new ChzzkChatMessage(e.Item1, e.Item2));
+      try
+      {
+        m_OnTextMessageReceivedCallbacks.InvokeAll(this, e);
+
+        if (!m_Channels.Contains(e.Channel))
+        {
+          m_Channels.Add(e.Channel);
+        }
+      }
+      catch (Exception ex)
+      {
+        Plugin.Log.Error(ex.Message);
+      }
     }
   }
 }

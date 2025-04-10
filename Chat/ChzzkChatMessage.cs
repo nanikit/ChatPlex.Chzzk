@@ -1,5 +1,9 @@
+using System;
+using System.Text;
 using CP_SDK.Animation;
+using CP_SDK.Chat.SimpleJSON;
 using CP_SDK.Chat.Interfaces;
+using System.Collections.Generic;
 
 namespace ChatPlex.Chzzk.Chat
 {
@@ -13,14 +17,27 @@ namespace ChatPlex.Chzzk.Chat
     public bool Live { get; set; }
     public int ViewerCount { get; set; }
 
+    static Dictionary<string, ChzzkChatChannel> channels = new Dictionary<string, ChzzkChatChannel>();
+
     public ChzzkChatChannel(string name)
     {
       Name = name;
+      Id = name;
       IsTemp = false;
       Prefix = "Chzzk";
       CanSendMessages = true;
       Live = true;
       ViewerCount = 0;
+    }
+
+    public static ChzzkChatChannel GetChannel(string name)
+    {
+      if (channels.ContainsKey(name))
+      {
+        return channels[name];
+      }
+
+      return new ChzzkChatChannel(name);
     }
   }
 
@@ -38,20 +55,22 @@ namespace ChatPlex.Chzzk.Chat
     public IChatChannel Channel { get; set; }
     public IChatEmote[] Emotes { get; set; }
 
-    public ChzzkChatMessage(string sender, string message)
+    public ChzzkChatMessage(JSONNode body)
     {
-      Sender = new ChzzkChatUser(sender);
-      Message = message;
-      Channel = new ChzzkChatChannel(sender);
-    }
+      try
+      {
+        Id = (string)body["msgTime"];
+        Message = (string)body["msg"];
 
-    public ChzzkChatMessage(string sender, string message, IChatChannel channel)
-    {
-      Sender = new ChzzkChatUser(sender);
-      Message = message;
-      Channel = channel;
+        Sender = new ChzzkChatUser(JSON.Parse(body["profile"]), (string)body["uid"]);
+        Channel = ChzzkChatChannel.GetChannel((string)body["cid"]);
+        Emotes = new ChzzkChatEmote[] { };
+      }
+      catch (Exception e)
+      {
+        Plugin.Log.Error($"Failed to parse chat message: {e.Message}");
+      }
     }
-
   }
 
   public class ChzzkChatUser : IChatUser
@@ -76,16 +95,34 @@ namespace ChatPlex.Chzzk.Chat
 
     public IChatBadge[] Badges { get; set; }
 
-    public ChzzkChatUser(string userName)
+    public ChzzkChatUser(JSONNode profile, string uid)
     {
-      UserName = userName;
-      DisplayName = userName;
-      PaintedName = userName;
-      Color = "#000000";
-      IsBroadcaster = false;
+      Id = uid;
+      UserName = (string)profile["nickname"];
+      DisplayName = UserName;
+      PaintedName = UserName;
+      Color = "#FFFFFF";
+      IsBroadcaster = (string)profile["userRoleCode"] == "streamer";
       IsModerator = false;
       IsSubscriber = false;
       IsVip = false;
+      Badges = new IChatBadge[] { };
+    }
+  }
+
+  public class ChzzkChatBadge : IChatBadge
+  {
+    public EBadgeType Type { get; set; }
+    public string Id { get; set; }
+    public string Name { get; set; }
+    public string Content { get; set; }
+
+    public ChzzkChatBadge(JSONNode badge)
+    {
+      Type = EBadgeType.Image;
+      Id = (string)badge["imageUrl"];
+      Name = (string)badge["imageUrl"];
+      Content = (string)badge["imageUrl"];
     }
   }
 

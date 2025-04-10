@@ -1,3 +1,5 @@
+using CP_SDK.Chat.SimpleJSON;
+using IPA.Utilities;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Linq;
@@ -16,7 +18,7 @@ namespace ChatPlex.Chzzk.Chat
     private readonly string pongMsg = "{\"ver\":\"2\",\"cmd\":10000}";
     private readonly Random rand = new Random();
 
-    public event EventHandler<(string, string)> OnMessage;
+    public event EventHandler<ChzzkChatMessage> OnMessage;
     public event EventHandler<string> OnError;
     public event EventHandler<(string, string)> OnDonate;
 
@@ -87,7 +89,6 @@ namespace ChatPlex.Chzzk.Chat
       {
         WebSocketReceiveResult result = await client.ReceiveAsync(bytesReceived, CancellationToken.None);
         string serverMsg = Encoding.UTF8.GetString(bytesReceived.Array, 0, result.Count);
-
         try
         {
           if (serverMsg == pingMsg) Send(pongMsg);
@@ -120,60 +121,35 @@ namespace ChatPlex.Chzzk.Chat
 
     private void ParseChat(object ReceiveString)
     {
-      JObject ReceiveObject = JObject.Parse((string)ReceiveString);
+      JSONNode ReceiveObject = JSON.Parse((string)ReceiveString);
 
-      if (ReceiveObject["bdy"].Type == JTokenType.Array)
+      if (ReceiveObject["bdy"].IsArray)
       {
-        foreach (var chat in ReceiveObject["bdy"])
+        foreach (var (key, chat) in ReceiveObject["bdy"].AsArray)
         {
-          var IsAnonymous = (bool?)JObject.Parse((string)chat["extras"])["isAnonymous"];
+          var IsAnonymous = JSON.Parse(chat["profile"])["extras"]["isAnonymous"];
 
           // common chat
           if (IsAnonymous == null)
           {
-            string Nickname = (string)JObject.Parse((string)chat["profile"])["nickname"];
-            string Msg = (string)chat["msg"];
-
-            Plugin.Log.Info(ReceiveString.ToString());
-            OnMessage?.Invoke(this, (Nickname, Msg));
+            ChzzkChatMessage message = new ChzzkChatMessage(chat);
+            OnMessage?.Invoke(this, message);
           }
           // anonymous donate
           else if (IsAnonymous == true)
           {
-            string Msg = (string)chat["msg"];
-            int PayAmount = (int)JObject.Parse((string)chat["extras"])["payAmount"];
-
-            Plugin.Log.Debug($"anonymous donate {PayAmount}w {Msg}");
-            OnDonate?.Invoke(this, ("anonymous", Msg));
+            Plugin.Log.Info("Anonymous Donate");
+            Plugin.Log.Info(ReceiveString.ToString());
+            // OnMessage?.Invoke(this, ChzzkChatMessage.FromRaw(chat.ToObject<Raw.GameBody>()));
           }
           // donate
           else if (IsAnonymous == false)
           {
-            string Nickname = (string)JObject.Parse((string)chat["profile"])["nickname"];
-            string Msg = (string)chat["msg"];
-            int PayAmount = (int)JObject.Parse((string)chat["extras"])["payAmount"];
-
-            Plugin.Log.Debug($"{Nickname} donate {PayAmount} {Msg}");
-            OnDonate?.Invoke(this, (Nickname, Msg));
+            Plugin.Log.Info("Donate");
+            Plugin.Log.Info(ReceiveString.ToString());
+            // OnMessage?.Invoke(this, ChzzkChatMessage.FromRaw(chat.ToObject<Raw.GameBody>()));
           }
         }
-      }
-      // mission
-      else if (ReceiveObject["bdy"].Type == JTokenType.Object)
-      {
-        var durationTime = (int?)ReceiveObject["bdy"]["durationTime"];
-        var totalPayAmount = (int?)ReceiveObject["bdy"]["totalPayAmount"];
-        var missionText = (string)ReceiveObject["bdy"]["missionText"];
-        var nickname = (string)ReceiveObject["bdy"]["nickname"];
-        var participationCount = (string)ReceiveObject["bdy"]["participationCount"];
-
-        if (totalPayAmount != null)
-        {
-          Plugin.Log.Debug(
-            $"Mission {missionText} |{totalPayAmount}w| time:{durationTime} {nickname}(and {participationCount} others)"
-          );
-        }
-
       }
     }
   }
