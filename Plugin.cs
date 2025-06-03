@@ -1,4 +1,4 @@
-﻿using ChatPlex.Chzzk.Configuration;
+using ChatPlex.Chzzk.Configuration;
 using IPA;
 using UnityEngine;
 using IPALogger = IPA.Logging.Logger;
@@ -19,22 +19,13 @@ namespace ChatPlex.Chzzk
     /// [Init] methods that use a Constructor or called before regular methods like InitWithConfig.
     /// Only use [Init] with one Constructor.
     /// </summary>
-    public void Init(IPALogger logger)
+    public void Init(IPALogger logger, Config conf)
     {
       Instance = this;
       Log = logger;
+      PluginConfig.Instance = conf.Generated<PluginConfig>();
       Log.Info("ChatPlex.Chzzk initialized.");
     }
-
-    #region BSIPA Config
-    //Uncomment to use BSIPA's config
-    [Init]
-    public void InitWithConfig(Config conf)
-    {
-      PluginConfig.Instance = conf.Generated<PluginConfig>();
-      Log.Debug("Config loaded");
-    }
-    #endregion
 
     [OnStart]
     public void OnApplicationStart()
@@ -42,14 +33,8 @@ namespace ChatPlex.Chzzk
       Log.Info("OnApplicationStart");
       new GameObject("ChatPlex.ChzzkController").AddComponent<ChzzkController>();
 
-      ChzzkService service = new ChzzkService();
+      var service = new ChzzkService();
       CP_SDK.Chat.Service.RegisterExternalService(service);
-    }
-
-    [OnExit]
-    public void OnApplicationQuit()
-    {
-      Log.Info("OnApplicationQuit");
     }
   }
 }
