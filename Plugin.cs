@@ -38,3 +38,8 @@ namespace ChatPlex.Chzzk
     }
   }
 }
+
+namespace System.Runtime.CompilerServices
+{
+  internal class IsExternalInit { }
+}

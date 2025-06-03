@@ -30,24 +30,24 @@ namespace ChatPlex.Chzzk.Chat
 
     public async Task Init()
     {
-      Plugin.Log?.Info($"{GetType().Name}: Init()");
-      GetChannelInfo userInfo = new GetChannelInfo();
-
       try
       {
+        Plugin.Log?.Info($"{GetType().Name}: Init()");
+        var liveChannel = await new GetChannelInfo2().GetLiveChannel().ConfigureAwait(false);
+
         await client.ConnectAsync(uri, CancellationToken.None);
         Plugin.Log?.Info($"{GetType().Name}: Connect to {uri}");
 
-        JObject connectObj = new JObject(
-            new JProperty("ver", "2"),
+        var connectObj = new JObject(
+            new JProperty("ver", "3"),
             new JProperty("cmd", 100),
             new JProperty("svcid", "game"),
-            new JProperty("cid", userInfo.ChatChannelId),
+            new JProperty("cid", liveChannel.Id),
             new JProperty("bdy", new JObject(
-                new JProperty("uid", userInfo.UId == "" ? "" : userInfo.UId),
+                new JProperty("uid", null),
                 new JProperty("devType", 2001),
-                new JProperty("accTkn", userInfo.AccessToken),
-                new JProperty("auth", (userInfo.UId != "") ? "SEND" : "READ")
+                new JProperty("accTkn", liveChannel.AccessToken),
+                new JProperty("auth", "READ")
                 )
             ),
             new JProperty("tid", 1)
