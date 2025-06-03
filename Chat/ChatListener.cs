@@ -24,11 +24,6 @@ namespace ChatPlex.Chzzk.Chat
 
     public ChatListener()
     {
-      ThreadPool.GetMaxThreads(out int workerThreads, out int completionPortThreads);
-      ThreadPool.SetMinThreads(workerThreads + 1, completionPortThreads + 1);
-      ThreadPool.GetMinThreads(out workerThreads, out completionPortThreads);
-      ThreadPool.SetMaxThreads(workerThreads + 5, completionPortThreads + 5);
-
       int id = rand.Next(1, 11);
       uri = new Uri($"wss://kr-ss{id}.chat.naver.com/chat");
     }
