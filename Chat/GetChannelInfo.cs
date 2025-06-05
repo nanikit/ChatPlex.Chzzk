@@ -89,6 +89,7 @@ namespace ChatPlex.Chzzk.Chat
           return liveChannel;
         }
 
+        Plugin.Log?.Info("Channel is not live. Waiting for 10 seconds...");
         await Task.Delay(10000, cancellationToken).ConfigureAwait(false);
       }
     }
@@ -103,7 +104,7 @@ namespace ChatPlex.Chzzk.Chat
       // Get Channel Id from Settings
       string channelId = PluginConfig.Instance.ChannelId;
 
-      Plugin.Log?.Info($"{typeof(GetChannelInfo2).Name}: SendRequest()");
+      Plugin.Log?.Debug($"{typeof(GetChannelInfo2).Name}: SendRequest()");
 
       // Get Channel Information
       string channelResponse = await client.DownloadStringTaskAsync($"https://api.chzzk.naver.com/polling/v2/channels/{channelId}/live-status").ConfigureAwait(false);
