@@ -1,5 +1,4 @@
 using System;
-using System.Text;
 using CP_SDK.Animation;
 using CP_SDK.Chat.SimpleJSON;
 using CP_SDK.Chat.Interfaces;
@@ -59,18 +58,53 @@ namespace ChatPlex.Chzzk.Chat
     {
       try
       {
-        Id = (string)body["msgTime"];
-        Message = (string)body["msg"];
+        Id = body["msgTime"].Value;
+        Message = body["msg"].Value;
 
         Sender = new ChzzkChatUser(JSON.Parse(body["profile"]), (string)body["uid"]);
         Channel = ChzzkChatChannel.GetChannel((string)body["cid"]);
-        Emotes = new ChzzkChatEmote[] { };
+
+        var emotes = new List<ChzzkChatEmote>();
+        var emojis = JSON.Parse(body["extras"])?["emojis"];
+        if (emojis != null)
+        {
+          foreach (var emoji in emojis.AsObject)
+          {
+            string name = $"{{:{emoji.Key}:}}";
+            foreach (var index in FindAllIndexes(Message, name))
+            {
+              var emote = new ChzzkChatEmote()
+              {
+                Id = $"chzzk-{emoji.Key}",
+                Name = name,
+                Uri = emoji.Value.Value,
+                StartIndex = index,
+                EndIndex = index + emoji.Key.Length + 3,
+              };
+              emotes.Add(emote);
+              Plugin.Log?.Debug($"{GetType().Name}: Emote: {emote}");
+            }
+          }
+        }
+        emotes.Reverse();
+        Emotes = [.. emotes];
       }
       catch (Exception e)
       {
         Plugin.Log.Error($"Failed to parse chat message: {e.Message}");
       }
     }
+
+    private static IEnumerable<int> FindAllIndexes(string text, string searchString)
+    {
+      int index = 0;
+      while ((index = text.IndexOf(searchString, index)) != -1)
+      {
+        yield return index;
+        index += searchString.Length;
+      }
+    }
+
   }
 
   public class ChzzkChatUser : IChatUser
@@ -126,7 +160,7 @@ namespace ChatPlex.Chzzk.Chat
     }
   }
 
-  public class ChzzkChatEmote : IChatEmote
+  public record ChzzkChatEmote : IChatEmote
   {
     public string Id { get; set; }
     public string Name { get; set; }
