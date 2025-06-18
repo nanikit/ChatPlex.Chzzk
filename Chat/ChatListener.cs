@@ -30,44 +30,53 @@ namespace ChatPlex.Chzzk.Chat
 
     public async Task Init()
     {
-      try
+      while (true)
       {
-        Plugin.Log?.Info($"{GetType().Name}: Init()");
-        var liveChannel = await new GetChannelInfo2().GetLiveChannel().ConfigureAwait(false);
-
-        await client.ConnectAsync(uri, CancellationToken.None);
-        Plugin.Log?.Info($"{GetType().Name}: Connect to {uri}");
-
-        var connectObj = new JObject(
-            new JProperty("ver", "3"),
-            new JProperty("cmd", 100),
-            new JProperty("svcid", "game"),
-            new JProperty("cid", liveChannel.Id),
-            new JProperty("bdy", new JObject(
-                new JProperty("uid", null),
-                new JProperty("devType", 2001),
-                new JProperty("accTkn", liveChannel.AccessToken),
-                new JProperty("auth", "READ")
-                )
-            ),
-            new JProperty("tid", 1)
-            );
-
-        // first touch
-        string jsonString = connectObj.ToString();
-        ArraySegment<byte> bytesToSend = new ArraySegment<byte>(Encoding.UTF8.GetBytes(jsonString));
-        await client.SendAsync(bytesToSend, WebSocketMessageType.Text, true, CancellationToken.None);
-
-        ThreadPool.QueueUserWorkItem(Listen);
-        Plugin.Log?.Info($"{GetType().Name}: Init() success");
-      }
-      catch (Exception e)
-      {
-        Plugin.Log.Error(e.Message);
+        try
+        {
+          await Connect().ConfigureAwait(false);
+          Plugin.Log?.Info($"{GetType().Name}: ");
+        }
+        catch (Exception e)
+        {
+          Plugin.Log?.Error(e.Message);
+        }
       }
     }
 
-    private async void Listen(Object obj)
+    public async Task Connect()
+    {
+      Plugin.Log?.Info($"{GetType().Name}: Init()");
+      var liveChannel = await new GetChannelInfo2().GetLiveChannel().ConfigureAwait(false);
+
+      await client.ConnectAsync(uri, CancellationToken.None);
+      Plugin.Log?.Info($"{GetType().Name}: Connect to {uri}");
+
+      var connectObj = new JObject(
+          new JProperty("ver", "3"),
+          new JProperty("cmd", 100),
+          new JProperty("svcid", "game"),
+          new JProperty("cid", liveChannel.Id),
+          new JProperty("bdy", new JObject(
+              new JProperty("uid", null),
+              new JProperty("devType", 2001),
+              new JProperty("accTkn", liveChannel.AccessToken),
+              new JProperty("auth", "READ")
+              )
+          ),
+          new JProperty("tid", 1)
+          );
+
+      // first touch
+      string jsonString = connectObj.ToString();
+      ArraySegment<byte> bytesToSend = new ArraySegment<byte>(Encoding.UTF8.GetBytes(jsonString));
+      await client.SendAsync(bytesToSend, WebSocketMessageType.Text, true, CancellationToken.None).ConfigureAwait(false);
+
+      await Listen().ConfigureAwait(false);
+      Plugin.Log?.Info($"{GetType().Name}: Init() success");
+    }
+
+    private async Task Listen()
     {
       ArraySegment<byte> bytesReceived = new ArraySegment<byte>(new byte[16384]);
 
@@ -89,7 +98,7 @@ namespace ChatPlex.Chzzk.Chat
           if (serverMsg == pingMsg) Send(pongMsg);
           else
           {
-            ThreadPool.QueueUserWorkItem(ParseChat, serverMsg);
+            ParseChat(serverMsg);
           }
         }
         catch (Exception e)
@@ -101,11 +110,7 @@ namespace ChatPlex.Chzzk.Chat
         }
       }
 
-    }
-
-    public async void CloseClient()
-    {
-      await client.CloseOutputAsync(WebSocketCloseStatus.Empty, null, CancellationToken.None);
+      await client.CloseOutputAsync(WebSocketCloseStatus.Empty, null, CancellationToken.None).ConfigureAwait(false);
     }
 
     private async void Send(string msg)
