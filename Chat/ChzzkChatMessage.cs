@@ -91,7 +91,7 @@ namespace ChatPlex.Chzzk.Chat
       }
       catch (Exception e)
       {
-        Plugin.Log.Error($"Failed to parse chat message: {e.Message}");
+        Plugin.Log.Error(e);
       }
     }
 
