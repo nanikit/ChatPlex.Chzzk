@@ -47,7 +47,7 @@ namespace ChatPlex.Chzzk.Chat
     public async Task Connect()
     {
       Plugin.Log?.Info($"{GetType().Name}: Init()");
-      var liveChannel = await new GetChannelInfo2().GetLiveChannel().ConfigureAwait(false);
+      var liveChannel = await new GetChannelInfo().GetLiveChannel().ConfigureAwait(false);
 
       await client.ConnectAsync(uri, CancellationToken.None);
       Plugin.Log?.Info($"{GetType().Name}: Connect to {uri}");
