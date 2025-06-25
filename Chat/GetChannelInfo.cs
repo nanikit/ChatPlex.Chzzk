@@ -1,5 +1,6 @@
 using ChatPlex.Chzzk.Configuration;
 using Newtonsoft.Json.Linq;
+using System;
 using System.Net;
 using System.Text;
 using System.Threading;
@@ -18,9 +19,13 @@ namespace ChatPlex.Chzzk.Chat
   {
     public async Task<LiveChannel> GetLiveChannel(CancellationToken cancellationToken = default)
     {
+      int retryCount = 0;
+
       while (true)
       {
         cancellationToken.ThrowIfCancellationRequested();
+
+        int delaySeconds = Math.Min(10 + retryCount, 30);
 
         var channel = await GetChannelAccess(cancellationToken).ConfigureAwait(false);
         switch (channel)
@@ -29,22 +34,26 @@ namespace ChatPlex.Chzzk.Chat
             return liveChannel;
           case NotFoundChannel:
             Plugin.Log?.Warn($"Channel ID({PluginConfig.Instance.ChannelId}) is not found. Please check your configuration.");
+            retryCount++;
             break;
           case DeadChannel:
-            Plugin.Log?.Info("Channel is not live. Waiting for 10 seconds...");
+            Plugin.Log?.Info($"Channel is not live. Waiting for {delaySeconds} seconds...");
+            retryCount++;
             break;
           case NotCreatedChannel:
             Plugin.Log?.Warn("Have you ever streamed on Chzzk? Please stream first.");
+            retryCount++;
             break;
           case LimitedChannel:
             Plugin.Log?.Warn("Cannot get channel ID. Are you streaming for adult only?");
             retryCount++;
             break;
           default:
+            retryCount = 0;
             break;
         }
 
-        await Task.Delay(10000, cancellationToken).ConfigureAwait(false);
+        await Task.Delay(delaySeconds * 1000, cancellationToken).ConfigureAwait(false);
       }
     }
 
@@ -109,7 +118,7 @@ namespace ChatPlex.Chzzk.Chat
         return new LimitedChannel();
       }
 
-      Plugin.Log?.Info($"{typeof(GetChannelInfo).Name}: SendRequest() - Chat Channel Id: {chatChannelId}");
+      Plugin.Log?.Debug($"{typeof(GetChannelInfo).Name}: SendRequest() - Chat Channel Id: {chatChannelId}");
 
       // Get Access Token
       string tokenResponse = await client.DownloadStringTaskAsync($"https://comm-api.game.naver.com/nng_main/v1/chats/access-token?channelId={chatChannelId}&chatType=STREAMING").ConfigureAwait(false);
@@ -118,7 +127,7 @@ namespace ChatPlex.Chzzk.Chat
       string? accessToken = tokenContent?["accessToken"]?.Value<string>();
       string? extraToken = tokenContent?["extraToken"]?.Value<string>();
 
-      Plugin.Log?.Info($"{typeof(GetChannelInfo).Name}: Access: {accessToken}, Extra: {extraToken}");
+      Plugin.Log?.Debug($"{typeof(GetChannelInfo).Name}: Access: {accessToken}, Extra: {extraToken}");
       if (accessToken == null || extraToken == null)
       {
         Plugin.Log?.Error("Channel Info Access Fail! - Access Token or Extra Token is null");
