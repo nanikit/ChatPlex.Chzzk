@@ -9,59 +9,27 @@ using System.Threading.Tasks;
 
 namespace ChatPlex.Chzzk.Chat
 {
-  public class ChatListener
+  public class ChatConnection : IDisposable
   {
-    public event EventHandler<ChzzkChatMessage> OnMessage = delegate { };
-    public event EventHandler<string> OnError = delegate { };
-    public event EventHandler<(string, string)> OnDonate = delegate { };
-
-    private readonly ClientWebSocket client = new ClientWebSocket();
     private readonly Uri uri;
     private readonly string pingMsg = "{\"ver\":\"2\",\"cmd\":0}";
     private readonly string pongMsg = "{\"ver\":\"2\",\"cmd\":10000}";
     private readonly Random rand = new Random();
+    private readonly ClientWebSocket client = new();
 
     private CancellationTokenSource _connectionCancellationTokenSource = new();
-    private DateTime _lastMessageTime = DateTime.MinValue;
 
     private CancellationToken ConnectionCancellationToken => _connectionCancellationTokenSource.Token;
-    private int _failureCount = 0;
 
-    public ChatListener()
+    public ChatConnection()
     {
       int id = rand.Next(1, 11);
       uri = new Uri($"wss://kr-ss{id}.chat.naver.com/chat");
     }
 
-    public async Task Init()
+    public async Task Connect()
     {
-      while (true)
-      {
-        try
-        {
-          await Connect().ConfigureAwait(false);
-          Plugin.Log?.Info($"{GetType().Name}: ");
-        }
-        catch (OperationCanceledException)
-        {
-          Plugin.Log?.Info($"{GetType().Name}: OperationCanceledException");
-        }
-        catch (Exception e)
-        {
-          Plugin.Log?.Error(e.Message);
-          _failureCount++;
-          if (_failureCount > 3)
-          {
-            throw;
-          }
-          await Task.Delay(1000, ConnectionCancellationToken).ConfigureAwait(false);
-        }
-      }
-    }
-
-    private async Task Connect()
-    {
-      Plugin.Log?.Info($"{GetType().Name}: Init()");
+      Plugin.Log?.Info($"{GetType().Name}: Connect()");
       var liveChannel = await new GetChannelInfo().GetLiveChannel().ConfigureAwait(false);
 
       await client.ConnectAsync(uri, CancellationToken.None);
@@ -86,12 +54,9 @@ namespace ChatPlex.Chzzk.Chat
       string jsonString = connectObj.ToString();
       ArraySegment<byte> bytesToSend = new ArraySegment<byte>(Encoding.UTF8.GetBytes(jsonString));
       await client.SendAsync(bytesToSend, WebSocketMessageType.Text, true, ConnectionCancellationToken).ConfigureAwait(false);
-
-      await Listen().ConfigureAwait(false);
-      Plugin.Log?.Info($"{GetType().Name}: Init() success");
     }
 
-    private async Task Listen()
+    public async Task Listen(Action<string> onMessage)
     {
       ArraySegment<byte> bytesReceived = new ArraySegment<byte>(new byte[16384]);
 
@@ -104,29 +69,87 @@ namespace ChatPlex.Chzzk.Chat
         Plugin.Log?.Error("Socket Link Fail");
       }
 
-      _ = ReconnectIfIdle();
       while (client.State == WebSocketState.Open)
       {
         WebSocketReceiveResult result = await client.ReceiveAsync(bytesReceived, ConnectionCancellationToken).ConfigureAwait(false);
         string serverMsg = Encoding.UTF8.GetString(bytesReceived.Array, 0, result.Count);
         try
         {
-          if (serverMsg == pingMsg) Send(pongMsg);
+          if (serverMsg == pingMsg)
+          {
+            await Send(pongMsg);
+          }
           else
           {
-            ParseChat(serverMsg);
+            onMessage(serverMsg);
           }
         }
         catch (Exception e)
         {
           Plugin.Log.Error(serverMsg);
           Plugin.Log.Error(e.Message);
-
-          OnError?.Invoke(this, e.Message);
         }
       }
 
+      Plugin.Log?.Info($"{GetType().Name}: Listen() end");
+
       await client.CloseOutputAsync(WebSocketCloseStatus.Empty, null, CancellationToken.None).ConfigureAwait(false);
+      client.Dispose();
+    }
+
+
+    private async Task Send(string msg)
+    {
+      ArraySegment<byte> bytesToSend = new ArraySegment<byte>(Encoding.UTF8.GetBytes(msg));
+      await client.SendAsync(bytesToSend, WebSocketMessageType.Text, true, ConnectionCancellationToken).ConfigureAwait(false);
+    }
+
+    public void Dispose()
+    {
+      _connectionCancellationTokenSource.Cancel();
+      _connectionCancellationTokenSource.Dispose();
+      client.Dispose();
+    }
+  }
+
+  public class ChatListener
+  {
+    public event EventHandler<ChzzkChatMessage> OnMessage = delegate { };
+    public event EventHandler<string> OnError = delegate { };
+    public event EventHandler<(string, string)> OnDonate = delegate { };
+
+    private ChatConnection _connection = new();
+    private DateTime _lastMessageTime = DateTime.MinValue;
+
+    public async Task Init()
+    {
+      int failureCount = 0;
+
+      while (true)
+      {
+        try
+        {
+          await _connection.Connect().ConfigureAwait(false);
+          _ = ReconnectIfIdle();
+
+          await _connection.Listen(ParseChat).ConfigureAwait(false);
+          Plugin.Log?.Info($"{GetType().Name}: ");
+        }
+        catch (OperationCanceledException)
+        {
+          Plugin.Log?.Info($"{GetType().Name}: No chat received at least 30 seconds, try reconnecting...");
+        }
+        catch (Exception e)
+        {
+          Plugin.Log?.Error(e);
+          failureCount++;
+          if (failureCount > 3)
+          {
+            throw;
+          }
+          await Task.Delay(1000).ConfigureAwait(false);
+        }
+      }
     }
 
     private async Task ReconnectIfIdle()
@@ -135,8 +158,8 @@ namespace ChatPlex.Chzzk.Chat
 
       while (true)
       {
-        await Task.Delay(10000, ConnectionCancellationToken).ConfigureAwait(false);
-        bool isIdle = DateTime.Now - _lastMessageTime > TimeSpan.FromSeconds(30);
+        await Task.Delay(30000).ConfigureAwait(false);
+        bool isIdle = DateTime.Now - _lastMessageTime > TimeSpan.FromMinutes(5);
         if (isIdle)
         {
           break;
@@ -144,15 +167,8 @@ namespace ChatPlex.Chzzk.Chat
       }
 
       Plugin.Log?.Info($"{GetType().Name}: Reconnect()");
-      _connectionCancellationTokenSource.Cancel();
-      _connectionCancellationTokenSource.Dispose();
-      _connectionCancellationTokenSource = new();
-    }
-
-    private async void Send(string msg)
-    {
-      ArraySegment<byte> bytesToSend = new ArraySegment<byte>(Encoding.UTF8.GetBytes(msg));
-      await client.SendAsync(bytesToSend, WebSocketMessageType.Text, true, ConnectionCancellationToken).ConfigureAwait(false);
+      _connection.Dispose();
+      _connection = new ChatConnection();
     }
 
     private void ParseChat(object ReceiveString)
