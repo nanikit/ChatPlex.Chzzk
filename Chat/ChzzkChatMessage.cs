@@ -40,7 +40,7 @@ namespace ChatPlex.Chzzk.Chat
     }
   }
 
-  public class ChzzkChatMessage : IChatMessage
+  public record ChzzkChatMessage : IChatMessage
   {
     public string Id { get; set; }
     public bool IsSystemMessage { get; set; }
@@ -82,7 +82,6 @@ namespace ChatPlex.Chzzk.Chat
                 EndIndex = index + emoji.Key.Length + 3,
               };
               emotes.Add(emote);
-              Plugin.Log?.Debug($"{GetType().Name}: Emote: {emote}");
             }
           }
         }

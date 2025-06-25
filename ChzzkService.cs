@@ -112,6 +112,7 @@ namespace ChatPlex.Chzzk
     {
       try
       {
+        Plugin.Log?.Debug($"{nameof(ChzzkSocket_OnMessageReceived)}(): {e}");
         m_OnTextMessageReceivedCallbacks.InvokeAll(this, e);
 
         if (!m_Channels.Contains(e.Channel))
