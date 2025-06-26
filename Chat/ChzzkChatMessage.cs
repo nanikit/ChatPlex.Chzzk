@@ -80,6 +80,7 @@ namespace ChatPlex.Chzzk.Chat
                 Uri = emoji.Value.Value,
                 StartIndex = index,
                 EndIndex = index + emoji.Key.Length + 3,
+                Animation = EAnimationType.AUTODETECT,
               };
               emotes.Add(emote);
             }
