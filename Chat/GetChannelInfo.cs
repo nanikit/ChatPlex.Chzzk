@@ -8,15 +8,23 @@ using System.Threading.Tasks;
 
 namespace ChatPlex.Chzzk.Chat
 {
-  record class ChatChannelAccess();
-  record class NotFoundChannel() : ChatChannelAccess();
-  record class NotCreatedChannel() : ChatChannelAccess();
-  record class LimitedChannel() : ChatChannelAccess();
-  record class DeadChannel() : ChatChannelAccess();
-  record class LiveChannel(string Id, string AccessToken, string ExtraToken) : ChatChannelAccess();
+  record ChatChannelAccess();
+  sealed record NotFoundChannel() : ChatChannelAccess();
+  sealed record NotCreatedChannel() : ChatChannelAccess();
+  sealed record LimitedChannel() : ChatChannelAccess();
+  sealed record DeadChannel() : ChatChannelAccess();
+  sealed record LiveChannel(string Id, string AccessToken, string ExtraToken) : ChatChannelAccess();
 
   class GetChannelInfo
   {
+    public async Task<string?> GetChannelName()
+    {
+      var client = GetWebClient();
+      var response = await client.DownloadStringTaskAsync($"https://api.chzzk.naver.com/service/v1/channels/{PluginConfig.Instance.ChannelId}").ConfigureAwait(false);
+      var json = JObject.Parse(response);
+      return json["content"]?["channelName"]?.Value<string>();
+    }
+
     public async Task<LiveChannel> GetLiveChannel(CancellationToken cancellationToken = default)
     {
       int retryCount = 0;
@@ -59,10 +67,7 @@ namespace ChatPlex.Chzzk.Chat
 
     private async Task<ChatChannelAccess?> GetChannelAccess(CancellationToken cancellationToken = default)
     {
-      var client = new WebClient();
-      client.Headers.Clear();
-      client.Headers.Add("Accept", "application/json");
-      client.Encoding = Encoding.UTF8;
+      WebClient client = GetWebClient();
 
       // Get Channel Id from Settings
       string channelId = PluginConfig.Instance.ChannelId;
@@ -135,6 +140,15 @@ namespace ChatPlex.Chzzk.Chat
       }
 
       return new LiveChannel(chatChannelId, accessToken, extraToken);
+    }
+
+    private static WebClient GetWebClient()
+    {
+      var client = new WebClient();
+      client.Headers.Clear();
+      client.Headers.Add("Accept", "application/json");
+      client.Encoding = Encoding.UTF8;
+      return client;
     }
   }
 }

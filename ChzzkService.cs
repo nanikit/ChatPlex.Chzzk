@@ -31,7 +31,8 @@ namespace ChatPlex.Chzzk
     public void Start()
     {
       listener = new ChatListener();
-      listener.OnMessage += ChzzkSocket_OnMessageReceived;
+      listener.OnMessage += ForwardTextMessageReceival;
+      listener.OnConnect += ForwardAsChannelJoin;
       _ = Task.Run(listener.Init);
     }
 
@@ -106,11 +107,11 @@ namespace ChatPlex.Chzzk
       return true;
     }
 
-    private void ChzzkSocket_OnMessageReceived(object sender, ChzzkChatMessage e)
+    private void ForwardTextMessageReceival(ChzzkChatMessage e)
     {
       try
       {
-        Plugin.Log?.Debug($"{nameof(ChzzkSocket_OnMessageReceived)}(): {e}");
+        Plugin.Log?.Debug($"{nameof(ForwardTextMessageReceival)}(): {e}");
         m_OnTextMessageReceivedCallbacks.InvokeAll(this, e);
 
         if (!m_Channels.Contains(e.Channel))
@@ -122,6 +123,11 @@ namespace ChatPlex.Chzzk
       {
         Plugin.Log.Error(ex.Message);
       }
+    }
+
+    private void ForwardAsChannelJoin(IChatChannel channel)
+    {
+      m_OnJoinRoomCallbacks.InvokeAll(this, channel);
     }
   }
 }

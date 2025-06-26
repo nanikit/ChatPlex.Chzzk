@@ -1,3 +1,4 @@
+using CP_SDK.Chat.Interfaces;
 using CP_SDK.Chat.SimpleJSON;
 using IPA.Utilities;
 using Newtonsoft.Json.Linq;
@@ -18,8 +19,12 @@ namespace ChatPlex.Chzzk.Chat
     private readonly ClientWebSocket client = new();
 
     private CancellationTokenSource _connectionCancellationTokenSource = new();
+    private LiveChannel? _channel;
 
     private CancellationToken ConnectionCancellationToken => _connectionCancellationTokenSource.Token;
+
+    public event Action OnConnect = delegate { };
+    public event Action<string> OnMessage = delegate { };
 
     public ChatConnection()
     {
@@ -30,7 +35,7 @@ namespace ChatPlex.Chzzk.Chat
     public async Task Connect()
     {
       Plugin.Log?.Info($"{GetType().Name}: Connect()");
-      var liveChannel = await new GetChannelInfo().GetLiveChannel().ConfigureAwait(false);
+      _channel = await new GetChannelInfo().GetLiveChannel().ConfigureAwait(false);
 
       await client.ConnectAsync(uri, CancellationToken.None);
       Plugin.Log?.Info($"{GetType().Name}: Connect to {uri}");
@@ -39,11 +44,11 @@ namespace ChatPlex.Chzzk.Chat
           new JProperty("ver", "3"),
           new JProperty("cmd", 100),
           new JProperty("svcid", "game"),
-          new JProperty("cid", liveChannel.Id),
+          new JProperty("cid", _channel.Id),
           new JProperty("bdy", new JObject(
               new JProperty("uid", null),
               new JProperty("devType", 2001),
-              new JProperty("accTkn", liveChannel.AccessToken),
+              new JProperty("accTkn", _channel.AccessToken),
               new JProperty("auth", "READ")
               )
           ),
@@ -56,13 +61,14 @@ namespace ChatPlex.Chzzk.Chat
       await client.SendAsync(bytesToSend, WebSocketMessageType.Text, true, ConnectionCancellationToken).ConfigureAwait(false);
     }
 
-    public async Task Listen(Action<string> onMessage)
+    public async Task Listen()
     {
       ArraySegment<byte> bytesReceived = new ArraySegment<byte>(new byte[16384]);
 
       if (client.State == WebSocketState.Open)
       {
         Plugin.Log?.Info("Socket Link Success");
+        OnConnect();
       }
       else
       {
@@ -81,7 +87,7 @@ namespace ChatPlex.Chzzk.Chat
           }
           else
           {
-            onMessage(serverMsg);
+            OnMessage(serverMsg);
           }
         }
         catch (Exception e)
@@ -114,13 +120,21 @@ namespace ChatPlex.Chzzk.Chat
 
   public class ChatListener : IDisposable
   {
-    public event EventHandler<ChzzkChatMessage> OnMessage = delegate { };
-    public event EventHandler<string> OnError = delegate { };
-    public event EventHandler<(string, string)> OnDonate = delegate { };
+    public event Action<ChzzkChatMessage> OnMessage = delegate { };
+    public event Action<IChatChannel> OnConnect = delegate { };
+    public event Action<string> OnError = delegate { };
+    public event Action<(string, string)> OnDonate = delegate { };
 
     private ChatConnection _connection = new();
     private DateTime _lastMessageTime = DateTime.MinValue;
+    private bool _isFirstConnection = true;
     private bool _isDisposed = false;
+
+    public ChatListener()
+    {
+      _connection.OnConnect += () => _ = ForwardFirstConnection();
+      _connection.OnMessage += ParseChat;
+    }
 
     public async Task Init()
     {
@@ -133,7 +147,7 @@ namespace ChatPlex.Chzzk.Chat
           await _connection.Connect().ConfigureAwait(false);
           _ = ReconnectIfIdle();
 
-          await _connection.Listen(ParseChat).ConfigureAwait(false);
+          await _connection.Listen().ConfigureAwait(false);
           Plugin.Log?.Info($"{GetType().Name}: ");
         }
         catch (OperationCanceledException)
@@ -185,6 +199,26 @@ namespace ChatPlex.Chzzk.Chat
       _connection = new ChatConnection();
     }
 
+    private async Task ForwardFirstConnection()
+    {
+      if (_isFirstConnection)
+      {
+        string? channelName = null;
+
+        try
+        {
+          channelName = await new GetChannelInfo().GetChannelName().ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+          Plugin.Log.Warn(exception);
+        }
+
+        OnConnect(new ChzzkChatChannel(channelName ?? "unknown"));
+        _isFirstConnection = false;
+      }
+    }
+
     private void ParseChat(object ReceiveString)
     {
       JSONNode ReceiveObject = JSON.Parse((string)ReceiveString);
@@ -200,7 +234,7 @@ namespace ChatPlex.Chzzk.Chat
           if (IsAnonymous == null)
           {
             ChzzkChatMessage message = new ChzzkChatMessage(chat);
-            OnMessage?.Invoke(this, message);
+            OnMessage.Invoke(message);
           }
           // anonymous donate
           else if (IsAnonymous == true)
