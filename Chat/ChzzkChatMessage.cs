@@ -23,7 +23,7 @@ namespace ChatPlex.Chzzk.Chat
       Name = name;
       Id = name;
       IsTemp = false;
-      Prefix = "Chzzk";
+      Prefix = "";
       CanSendMessages = true;
       Live = true;
       ViewerCount = 0;
@@ -103,7 +103,6 @@ namespace ChatPlex.Chzzk.Chat
         index += searchString.Length;
       }
     }
-
   }
 
   public class ChzzkChatUser : IChatUser
