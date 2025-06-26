@@ -132,8 +132,7 @@ namespace ChatPlex.Chzzk.Chat
 
     public ChatListener()
     {
-      _connection.OnConnect += () => _ = ForwardFirstConnection();
-      _connection.OnMessage += ParseChat;
+      Reconnect();
     }
 
     public async Task Init()
@@ -195,8 +194,7 @@ namespace ChatPlex.Chzzk.Chat
       }
 
       Plugin.Log?.Info($"{GetType().Name}: Reconnect()");
-      _connection.Dispose();
-      _connection = new ChatConnection();
+      Reconnect();
     }
 
     private async Task ForwardFirstConnection()
@@ -219,9 +217,18 @@ namespace ChatPlex.Chzzk.Chat
       }
     }
 
-    private void ParseChat(object ReceiveString)
+    private void Reconnect()
     {
-      JSONNode ReceiveObject = JSON.Parse((string)ReceiveString);
+      _connection.Dispose();
+      _connection = new ChatConnection();
+      _connection.OnConnect += () => _ = ForwardFirstConnection();
+      _connection.OnMessage += ParseChat;
+    }
+
+    private void ParseChat(string json)
+    {
+      JSONNode ReceiveObject = JSON.Parse(json);
+      Plugin.Log.Info($"{GetType().Name}: ParseChat() {json}");
 
       if (ReceiveObject["bdy"].IsArray)
       {
@@ -240,14 +247,14 @@ namespace ChatPlex.Chzzk.Chat
           else if (IsAnonymous == true)
           {
             Plugin.Log.Info("Anonymous Donate");
-            Plugin.Log.Info(ReceiveString.ToString());
+            Plugin.Log.Info(json.ToString());
             // OnMessage?.Invoke(this, ChzzkChatMessage.FromRaw(chat.ToObject<Raw.GameBody>()));
           }
           // donate
           else if (IsAnonymous == false)
           {
             Plugin.Log.Info("Donate");
-            Plugin.Log.Info(ReceiveString.ToString());
+            Plugin.Log.Info(json.ToString());
             // OnMessage?.Invoke(this, ChzzkChatMessage.FromRaw(chat.ToObject<Raw.GameBody>()));
           }
         }
