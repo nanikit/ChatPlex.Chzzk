@@ -21,26 +21,24 @@ namespace ChatPlex.Chzzk
     public ReadOnlyCollection<(IChatService, IChatChannel)> Channels => m_Channels.Select(x => (this as IChatService, x)).ToList().AsReadOnly();
 
     private List<IChatChannel> m_Channels = new List<IChatChannel>();
-    private readonly ChatListener listener;
-
-    private Task m_ListenerInitTask;
+    private ChatListener? listener;
 
     public ChzzkService()
     {
       Plugin.Log?.Info($"{GetType().Name}: Awake()");
-
-      listener = new ChatListener();
-      listener.OnMessage += ChzzkSocket_OnMessageReceived;
     }
 
     public void Start()
     {
-      m_ListenerInitTask = Task.Run(listener.Init);
+      listener = new ChatListener();
+      listener.OnMessage += ChzzkSocket_OnMessageReceived;
+      _ = Task.Run(listener.Init);
     }
 
     public void Stop()
     {
-
+      listener?.Dispose();
+      listener = null;
     }
 
     public void RecacheEmotes()

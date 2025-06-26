@@ -112,7 +112,7 @@ namespace ChatPlex.Chzzk.Chat
     }
   }
 
-  public class ChatListener
+  public class ChatListener : IDisposable
   {
     public event EventHandler<ChzzkChatMessage> OnMessage = delegate { };
     public event EventHandler<string> OnError = delegate { };
@@ -120,12 +120,13 @@ namespace ChatPlex.Chzzk.Chat
 
     private ChatConnection _connection = new();
     private DateTime _lastMessageTime = DateTime.MinValue;
+    private bool _isDisposed = false;
 
     public async Task Init()
     {
       int failureCount = 0;
 
-      while (true)
+      while (!_isDisposed)
       {
         try
         {
@@ -152,6 +153,14 @@ namespace ChatPlex.Chzzk.Chat
       }
     }
 
+    public void Dispose()
+    {
+      _isDisposed = true;
+      _connection.Dispose();
+      _lastMessageTime = DateTime.MinValue;
+      Plugin.Log?.Info($"{GetType().Name}: Dispose()");
+    }
+
     private async Task ReconnectIfIdle()
     {
       _lastMessageTime = DateTime.MinValue;
@@ -159,6 +168,11 @@ namespace ChatPlex.Chzzk.Chat
       while (true)
       {
         await Task.Delay(30000).ConfigureAwait(false);
+        if (_isDisposed)
+        {
+          return;
+        }
+
         bool isIdle = DateTime.Now - _lastMessageTime > TimeSpan.FromMinutes(5);
         if (isIdle)
         {
