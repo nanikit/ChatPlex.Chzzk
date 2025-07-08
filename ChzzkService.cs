@@ -21,26 +21,25 @@ namespace ChatPlex.Chzzk
     public ReadOnlyCollection<(IChatService, IChatChannel)> Channels => m_Channels.Select(x => (this as IChatService, x)).ToList().AsReadOnly();
 
     private List<IChatChannel> m_Channels = new List<IChatChannel>();
-    private readonly ChatListener listener;
-
-    private Task m_ListenerInitTask;
+    private ChatListener? listener;
 
     public ChzzkService()
     {
       Plugin.Log?.Info($"{GetType().Name}: Awake()");
-
-      listener = new ChatListener();
-      listener.OnMessage += ChzzkSocket_OnMessageReceived;
     }
 
     public void Start()
     {
-      m_ListenerInitTask = Task.Run(listener.Init);
+      listener = new ChatListener();
+      listener.OnMessage += ForwardTextMessageReceival;
+      listener.OnConnect += ForwardAsChannelJoin;
+      _ = Task.Run(listener.Init);
     }
 
     public void Stop()
     {
-
+      listener?.Dispose();
+      listener = null;
     }
 
     public void RecacheEmotes()
@@ -108,10 +107,11 @@ namespace ChatPlex.Chzzk
       return true;
     }
 
-    private void ChzzkSocket_OnMessageReceived(object sender, ChzzkChatMessage e)
+    private void ForwardTextMessageReceival(ChzzkChatMessage e)
     {
       try
       {
+        Plugin.Log?.Debug($"{nameof(ForwardTextMessageReceival)}(): {e}");
         m_OnTextMessageReceivedCallbacks.InvokeAll(this, e);
 
         if (!m_Channels.Contains(e.Channel))
@@ -123,6 +123,11 @@ namespace ChatPlex.Chzzk
       {
         Plugin.Log.Error(ex.Message);
       }
+    }
+
+    private void ForwardAsChannelJoin(IChatChannel channel)
+    {
+      m_OnJoinRoomCallbacks.InvokeAll(this, channel);
     }
   }
 }

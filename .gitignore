@@ -1,4 +1,10 @@
 # build artifacts
-obj
-bin
+obj/
+bin/
 
+# Visual studio cache
+.vs/
+
+# User specific files
+*.user
+/.vscode/
