@@ -76,7 +76,7 @@ namespace ChatPlex.Chzzk.Chat
           }
         }
       }
-      emotes.Reverse();
+      emotes.Sort((a, b) => b.StartIndex.CompareTo(a.StartIndex));
 
       return new ChzzkChatMessage(id, message, sender, channel)
       {
