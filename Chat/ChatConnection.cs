@@ -12,7 +12,6 @@ namespace ChatPlex.Chzzk.Chat
     private readonly Uri uri;
     private readonly string pingMsg = "{\"ver\":\"2\",\"cmd\":0}";
     private readonly string pongMsg = "{\"ver\":\"2\",\"cmd\":10000}";
-    private readonly Random rand = new();
     private readonly ClientWebSocket client = new();
 
     private readonly CancellationTokenSource _connectionCancellationTokenSource = new();
@@ -25,7 +24,7 @@ namespace ChatPlex.Chzzk.Chat
 
     public ChatConnection()
     {
-      int id = rand.Next(1, 11);
+      int id = new Random().Next(1, 6);
       uri = new Uri($"wss://kr-ss{id}.chat.naver.com/chat");
     }
 
