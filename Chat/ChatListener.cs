@@ -1,5 +1,4 @@
 using ChatPlex.Chzzk.Configuration;
-using CP_SDK.Chat.Interfaces;
 using CP_SDK.Chat.SimpleJSON;
 using IPA.Utilities;
 using System;
@@ -11,12 +10,12 @@ namespace ChatPlex.Chzzk.Chat
   public class ChatListener : IDisposable
   {
     public event Action<ChzzkChatMessage> OnMessage = delegate { };
-    public event Action<IChatChannel> OnConnect = delegate { };
-    public event Action<string> OnError = delegate { };
-    public event Action<(string, string)> OnDonate = delegate { };
+    public event Action<string> OnChannelFound = delegate { };
+    public event Action<string> OnChannelNotFound = delegate { };
+    public event Action<string> OnConnect = delegate { };
+    public event Action<string> OnDisconnect = delegate { };
 
     private ChatConnection _connection = new();
-    private DateTime _lastMessageTime = DateTime.MinValue;
     private bool _isFirstConnection = true;
     private bool _isDisposed = false;
 
@@ -29,15 +28,39 @@ namespace ChatPlex.Chzzk.Chat
     {
       int failureCount = 0;
 
+      try
+      {
+        var channel = await new HttpApiClient().GetChannel(PluginConfig.Instance.ChannelId).ConfigureAwait(false);
+        if (channel != null)
+        {
+          OnChannelFound(channel.ChannelName);
+          _isFirstConnection = false;
+        }
+        else
+        {
+          OnChannelNotFound(PluginConfig.Instance.ChannelId);
+        }
+      }
+      catch (Exception exception)
+      {
+        Plugin.Log?.Error(exception);
+      }
+
       while (!_isDisposed)
       {
         try
         {
-          await _connection.Connect().ConfigureAwait(false);
-          _ = ReconnectIfIdle();
+          var chatAccess = await _connection.Connect().ConfigureAwait(false);
+          ForwardConnection(chatAccess);
 
-          await _connection.Listen().ConfigureAwait(false);
-          Plugin.Log?.Info($"{GetType().Name}: ");
+          try
+          {
+            await _connection.Listen().ConfigureAwait(false);
+          }
+          finally
+          {
+            OnDisconnect(chatAccess.LiveTitle);
+          }
         }
         catch (OperationCanceledException)
         {
@@ -60,69 +83,34 @@ namespace ChatPlex.Chzzk.Chat
     {
       _isDisposed = true;
       _connection.Dispose();
-      _lastMessageTime = DateTime.MinValue;
       Plugin.Log?.Info($"{GetType().Name}: Dispose()");
     }
 
-    private async Task ReconnectIfIdle()
-    {
-      _lastMessageTime = DateTime.MinValue;
-
-      while (true)
-      {
-        await Task.Delay(30000).ConfigureAwait(false);
-        if (_isDisposed)
-        {
-          return;
-        }
-
-        bool isIdle = DateTime.Now - _lastMessageTime > TimeSpan.FromMinutes(5);
-        if (isIdle)
-        {
-          break;
-        }
-      }
-
-      Plugin.Log?.Info($"{GetType().Name}: Reconnect()");
-      Reconnect();
-    }
-
-    private async Task ForwardFirstConnection()
+    private void ForwardConnection(ChatAccess chatAccess)
     {
       if (_isFirstConnection)
       {
-        string? channelName = null;
-
-        try
-        {
-          channelName = await new HttpApiClient().GetChannelName(PluginConfig.Instance.ChannelId).ConfigureAwait(false);
-        }
-        catch (Exception exception)
-        {
-          Plugin.Log.Warn(exception);
-        }
-
-        OnConnect(new ChzzkChatChannel(channelName ?? "unknown"));
+        OnChannelFound(chatAccess.ChannelName ?? "(unknown)");
         _isFirstConnection = false;
       }
+
+      OnConnect(chatAccess.LiveTitle);
     }
 
     private void Reconnect()
     {
       _connection.Dispose();
       _connection = new ChatConnection();
-      _connection.OnConnect += () => _ = ForwardFirstConnection();
       _connection.OnMessage += ParseChat;
     }
 
     private void ParseChat(string json)
     {
       JSONNode ReceiveObject = JSON.Parse(json);
-      Plugin.Log.Info($"{GetType().Name}: ParseChat() {json}");
+      Plugin.Log.Debug($"{GetType().Name}: ParseChat() {json}");
 
       if (ReceiveObject["bdy"].IsArray)
       {
-        _lastMessageTime = DateTime.Now;
         foreach (var (key, chat) in ReceiveObject["bdy"].AsArray)
         {
           var IsAnonymous = JSON.Parse(chat["profile"])["extras"]["isAnonymous"];

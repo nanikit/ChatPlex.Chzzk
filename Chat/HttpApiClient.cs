@@ -11,17 +11,27 @@ namespace ChatPlex.Chzzk.Chat
   sealed record NotCreated() : LiveStatus();
   sealed record Limited() : LiveStatus();
   sealed record NotLive() : LiveStatus();
-  sealed record Live(string ChatChannelId) : LiveStatus();
+  sealed record Live(string ChatChannelId, string LiveTitle) : LiveStatus();
+
+  record Channel(string ChannelId, string ChannelName, bool OpenLive);
 
   class HttpApiClient
   {
     private readonly WebClient _client = GetWebClient();
 
-    public async Task<string?> GetChannelName(string channelId)
+    public async Task<Channel?> GetChannel(string channelId)
     {
-      var response = await _client.DownloadStringTaskAsync($"https://api.chzzk.naver.com/service/v1/channels/{channelId}").ConfigureAwait(false);
-      var json = JObject.Parse(response);
-      return json["content"]?["channelName"]?.Value<string>();
+      var channel = await GetChannelObject(channelId).ConfigureAwait(false);
+      var content = channel?["content"];
+      string? id = content?["channelId"]?.Value<string>();
+      if (id == null)
+      {
+        return null;
+      }
+
+      string? channelName = content?["channelName"]?.Value<string>() ?? "(unknown)";
+      bool openLive = content?["openLive"]?.Value<bool>() ?? false;
+      return new Channel(channelId, channelName, openLive);
     }
 
     public async Task<LiveStatus> GetLiveStatus(string channelId)
@@ -62,7 +72,8 @@ namespace ChatPlex.Chzzk.Chat
         return new Limited();
       }
 
-      return new Live(chatChannelId);
+      string? liveTitle = content["liveTitle"]?.Value<string>();
+      return new Live(chatChannelId, liveTitle ?? "(unknown)");
     }
 
     public async Task<(string AccessToken, string ExtraToken)> GetAccessToken(string chatChannelId)
@@ -83,6 +94,12 @@ namespace ChatPlex.Chzzk.Chat
       }
 
       return (accessToken, extraToken);
+    }
+
+    private async Task<JObject?> GetChannelObject(string channelId)
+    {
+      string channelResponse = await _client.DownloadStringTaskAsync($"https://api.chzzk.naver.com/service/v1/channels/{channelId}").ConfigureAwait(false);
+      return JObject.Parse(channelResponse);
     }
 
     private async Task<JObject?> GetLiveStatusObject(string channelId)

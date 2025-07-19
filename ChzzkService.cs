@@ -32,7 +32,10 @@ namespace ChatPlex.Chzzk
     {
       listener = new ChatListener();
       listener.OnMessage += ForwardTextMessageReception;
-      listener.OnConnect += ForwardAsChannelJoin;
+      listener.OnChannelFound += ForwardAsChannelJoin;
+      listener.OnChannelNotFound += PrintWarning;
+      listener.OnConnect += ForwardAsChannelLive;
+      listener.OnDisconnect += ForwardAsChannelNotLive;
       _ = Task.Run(listener.Init);
     }
 
@@ -111,7 +114,6 @@ namespace ChatPlex.Chzzk
     {
       try
       {
-        Plugin.Log?.Debug($"{nameof(ForwardTextMessageReception)}(): {e}");
         m_OnTextMessageReceivedCallbacks.InvokeAll(this, e);
 
         if (!m_Channels.Contains(e.Channel))
@@ -125,9 +127,27 @@ namespace ChatPlex.Chzzk
       }
     }
 
-    private void ForwardAsChannelJoin(IChatChannel channel)
+    private void ForwardAsChannelJoin(string channelName)
     {
-      m_OnJoinRoomCallbacks.InvokeAll(this, channel);
+      m_OnJoinRoomCallbacks.InvokeAll(this, new ChzzkChatChannel(channelName));
+    }
+
+    private void PrintWarning(string channelId)
+    {
+      m_OnSystemMessageCallbacks.InvokeAll(this, $"<color=orange><b>Channel({channelId}) is not found. Please check your configuration.</b></color>");
+    }
+
+    private void ForwardAsChannelLive(string liveTitle)
+    {
+      Plugin.Log?.Debug($"{nameof(ForwardAsChannelLive)}(): {liveTitle}");
+      m_OnLiveStatusUpdatedCallbacks.InvokeAll(this, new ChzzkChatChannel(liveTitle), true, 0);
+      m_OnSystemMessageCallbacks.InvokeAll(this, $"<color=green><b>Joining \"{liveTitle}\" live!</b></color>");
+    }
+
+    private void ForwardAsChannelNotLive(string liveTitle)
+    {
+      m_OnLiveStatusUpdatedCallbacks.InvokeAll(this, new ChzzkChatChannel(liveTitle), false, 0);
+      m_OnSystemMessageCallbacks.InvokeAll(this, $"<color=green><b>Leaving \"{liveTitle}\" live!</b></color>");
     }
   }
 }
