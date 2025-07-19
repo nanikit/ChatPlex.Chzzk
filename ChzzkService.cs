@@ -20,7 +20,7 @@ namespace ChatPlex.Chzzk
 
     public ReadOnlyCollection<(IChatService, IChatChannel)> Channels => m_Channels.Select(x => (this as IChatService, x)).ToList().AsReadOnly();
 
-    private List<IChatChannel> m_Channels = new List<IChatChannel>();
+    private readonly List<IChatChannel> m_Channels = [];
     private ChatListener? listener;
 
     public ChzzkService()

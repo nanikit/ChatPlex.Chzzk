@@ -16,7 +16,7 @@ namespace ChatPlex.Chzzk.Chat
     public bool Live { get; set; }
     public int ViewerCount { get; set; }
 
-    static Dictionary<string, ChzzkChatChannel> channels = new Dictionary<string, ChzzkChatChannel>();
+    private static readonly Dictionary<string, ChzzkChatChannel> channels = [];
 
     public ChzzkChatChannel(string name)
     {
