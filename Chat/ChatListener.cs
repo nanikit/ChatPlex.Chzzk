@@ -129,8 +129,15 @@ namespace ChatPlex.Chzzk.Chat
           // common chat
           if (IsAnonymous == null)
           {
-            var message = new ChzzkChatMessage(chat);
-            OnMessage.Invoke(message);
+            try
+            {
+              var message = ChzzkChatMessage.FromRaw(chat);
+              OnMessage.Invoke(message);
+            }
+            catch (Exception exception)
+            {
+              Plugin.Log.Error(exception);
+            }
           }
           // anonymous donate
           else if (IsAnonymous == true)

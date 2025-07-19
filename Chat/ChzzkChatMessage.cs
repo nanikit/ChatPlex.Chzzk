@@ -47,52 +47,57 @@ namespace ChatPlex.Chzzk.Chat
     public bool IsActionMessage { get; set; }
     public bool IsHighlighted { get; set; }
     public bool IsGiganticEmote { get; set; }
-
     public bool IsPing { get; set; }
+
     public string Message { get; set; }
     public IChatUser Sender { get; set; }
     public IChatChannel Channel { get; set; }
-    public IChatEmote[] Emotes { get; set; }
+    public IChatEmote[] Emotes { get; set; } = [];
 
-    public ChzzkChatMessage(JSONNode body)
+    public ChzzkChatMessage(string id, string message, IChatUser sender, IChatChannel channel)
     {
-      try
+      Id = id;
+      Message = message;
+      Sender = sender;
+      Channel = channel;
+    }
+
+    public static ChzzkChatMessage FromRaw(JSONNode body)
+    {
+      string id = body["msgTime"].Value;
+      string message = body["msg"].Value;
+
+      IChatUser sender = new ChzzkChatUser(JSON.Parse(body["profile"]), (string)body["uid"]);
+      IChatChannel channel = ChzzkChatChannel.GetChannel((string)body["cid"]);
+
+      var emotes = new List<ChzzkChatEmote>();
+      var emojis = JSON.Parse(body["extras"])?["emojis"];
+      if (emojis != null)
       {
-        Id = body["msgTime"].Value;
-        Message = body["msg"].Value;
-
-        Sender = new ChzzkChatUser(JSON.Parse(body["profile"]), (string)body["uid"]);
-        Channel = ChzzkChatChannel.GetChannel((string)body["cid"]);
-
-        var emotes = new List<ChzzkChatEmote>();
-        var emojis = JSON.Parse(body["extras"])?["emojis"];
-        if (emojis != null)
+        foreach (var emoji in emojis.AsObject)
         {
-          foreach (var emoji in emojis.AsObject)
+          string name = $"{{:{emoji.Key}:}}";
+          foreach (var index in FindAllIndexes(message, name))
           {
-            string name = $"{{:{emoji.Key}:}}";
-            foreach (var index in FindAllIndexes(Message, name))
+            var emote = new ChzzkChatEmote()
             {
-              var emote = new ChzzkChatEmote()
-              {
-                Id = $"chzzk-{emoji.Key}",
-                Name = name,
-                Uri = emoji.Value.Value,
-                StartIndex = index,
-                EndIndex = index + emoji.Key.Length + 3,
-                Animation = EAnimationType.AUTODETECT,
-              };
-              emotes.Add(emote);
-            }
+              Id = $"chzzk-{emoji.Key}",
+              Name = name,
+              Uri = emoji.Value.Value,
+              StartIndex = index,
+              EndIndex = index + emoji.Key.Length + 3,
+              Animation = EAnimationType.AUTODETECT,
+            };
+            emotes.Add(emote);
           }
         }
-        emotes.Reverse();
-        Emotes = [.. emotes];
       }
-      catch (Exception e)
+      emotes.Reverse();
+
+      return new ChzzkChatMessage(id, message, sender, channel)
       {
-        Plugin.Log.Error(e);
-      }
+        Emotes = [.. emotes]
+      };
     }
 
     private static IEnumerable<int> FindAllIndexes(string text, string searchString)
@@ -109,23 +114,14 @@ namespace ChatPlex.Chzzk.Chat
   public class ChzzkChatUser : IChatUser
   {
     public string Id { get; set; }
-
     public string UserName { get; set; }
-
     public string DisplayName { get; set; }
-
     public string PaintedName { get; set; }
-
     public string Color { get; set; }
-
     public bool IsBroadcaster { get; set; }
-
     public bool IsModerator { get; set; }
-
     public bool IsSubscriber { get; set; }
-
     public bool IsVip { get; set; }
-
     public IChatBadge[] Badges { get; set; }
 
     public ChzzkChatUser(JSONNode profile, string uid)
