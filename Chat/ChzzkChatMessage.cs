@@ -2,6 +2,7 @@ using CP_SDK.Animation;
 using CP_SDK.Chat.SimpleJSON;
 using CP_SDK.Chat.Interfaces;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace ChatPlex.Chzzk.Chat
 {
@@ -166,8 +167,12 @@ namespace ChatPlex.Chzzk.Chat
       string userName = profile["nickname"].Value;
       bool isBroadcaster = profile["userRoleCode"].Value == "streamer";
       string color = GetNameColor(profile, chatChannelId);
+      var badges = profile["viewerBadges"].AsArray.Children.Select(ChzzkChatBadge.FromRaw).ToArray();
 
-      return new ChzzkChatUser(userId, userName, isBroadcaster, color);
+      return new ChzzkChatUser(userId, userName, isBroadcaster, color)
+      {
+        Badges = badges
+      };
     }
 
     private static string GetNameColor(JSONNode profile, string chatChannelId)
@@ -191,17 +196,24 @@ namespace ChatPlex.Chzzk.Chat
 
   public class ChzzkChatBadge : IChatBadge
   {
-    public EBadgeType Type { get; set; }
-    public string Id { get; set; }
-    public string Name { get; set; }
-    public string Content { get; set; }
+    public EBadgeType Type { get; set; } = EBadgeType.Image;
+    public string Id { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string Content { get; set; } = "";
 
-    public ChzzkChatBadge(JSONNode badge)
+    public ChzzkChatBadge(string id, string content)
     {
-      Type = EBadgeType.Image;
-      Id = (string)badge["imageUrl"];
-      Name = (string)badge["imageUrl"];
-      Content = (string)badge["imageUrl"];
+      Id = id;
+      Name = id;
+      Content = content;
+    }
+
+    public static ChzzkChatBadge FromRaw(JSONNode badgeNode)
+    {
+      var badge = badgeNode["badge"].AsObject;
+      string id = badge["badgeId"].Value;
+      string content = badge["imageUrl"].Value;
+      return new ChzzkChatBadge(id, content);
     }
   }
 
