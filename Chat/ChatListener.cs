@@ -1,3 +1,4 @@
+using ChatPlex.Chzzk.Configuration;
 using CP_SDK.Chat.Interfaces;
 using CP_SDK.Chat.SimpleJSON;
 using IPA.Utilities;
@@ -94,7 +95,7 @@ namespace ChatPlex.Chzzk.Chat
 
         try
         {
-          channelName = await new GetChannelInfo().GetChannelName().ConfigureAwait(false);
+          channelName = await new HttpApiClient().GetChannelName(PluginConfig.Instance.ChannelId).ConfigureAwait(false);
         }
         catch (Exception exception)
         {

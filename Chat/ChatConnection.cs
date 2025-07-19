@@ -1,3 +1,4 @@
+using ChatPlex.Chzzk.Configuration;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Net.WebSockets;
@@ -15,9 +16,11 @@ namespace ChatPlex.Chzzk.Chat
     private readonly ClientWebSocket client = new();
 
     private readonly CancellationTokenSource _connectionCancellationTokenSource = new();
-    private LiveChannel? _channel;
+    private ChatChannel? _channel;
 
     private CancellationToken ConnectionCancellationToken => _connectionCancellationTokenSource.Token;
+
+    record ChatChannel(string Id, string AccessToken, string ExtraToken);
 
     public event Action OnConnect = delegate { };
     public event Action<string> OnMessage = delegate { };
@@ -31,7 +34,7 @@ namespace ChatPlex.Chzzk.Chat
     public async Task Connect()
     {
       Plugin.Log?.Info($"{GetType().Name}: Connect()");
-      _channel = await new GetChannelInfo().GetLiveChannel().ConfigureAwait(false);
+      _channel = await GetLiveChannel().ConfigureAwait(false);
 
       await client.ConnectAsync(uri, CancellationToken.None);
       Plugin.Log?.Info($"{GetType().Name}: Connect to {uri}");
@@ -99,7 +102,6 @@ namespace ChatPlex.Chzzk.Chat
       client.Dispose();
     }
 
-
     private async Task Send(string msg)
     {
       ArraySegment<byte> bytesToSend = new(Encoding.UTF8.GetBytes(msg));
@@ -111,6 +113,48 @@ namespace ChatPlex.Chzzk.Chat
       _connectionCancellationTokenSource.Cancel();
       _connectionCancellationTokenSource.Dispose();
       client.Dispose();
+    }
+
+    private async Task<ChatChannel> GetLiveChannel(CancellationToken cancellationToken = default)
+    {
+      var client = new HttpApiClient();
+      int retryCount = 0;
+
+      while (true)
+      {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        int delaySeconds = Math.Min(10 + retryCount, 30);
+
+        var status = await client.GetLiveStatus(PluginConfig.Instance.ChannelId).ConfigureAwait(false);
+        switch (status)
+        {
+          case Live liveChannel:
+            var (accessToken, extraToken) = await client.GetAccessToken(liveChannel.ChatChannelId).ConfigureAwait(false);
+            return new ChatChannel(liveChannel.ChatChannelId, accessToken, extraToken);
+          case NotFound:
+            Plugin.Log?.Warn($"Channel ID({PluginConfig.Instance.ChannelId}) is not found. Please check your configuration.");
+            retryCount++;
+            break;
+          case NotLive:
+            Plugin.Log?.Info($"Channel is not live. Waiting for {delaySeconds} seconds...");
+            retryCount++;
+            break;
+          case NotCreated:
+            Plugin.Log?.Warn("Have you ever streamed on Chzzk? Please stream first.");
+            retryCount++;
+            break;
+          case Limited:
+            Plugin.Log?.Warn("Cannot get channel ID. Are you streaming for adult only?");
+            retryCount++;
+            break;
+          default:
+            retryCount = 0;
+            break;
+        }
+
+        await Task.Delay(delaySeconds * 1000, cancellationToken).ConfigureAwait(false);
+      }
     }
   }
 }
