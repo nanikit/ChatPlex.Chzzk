@@ -43,7 +43,7 @@ namespace ChatPlex.Chzzk.Chat
           new JProperty("svcid", "game"),
           new JProperty("cid", channel.ChannelId),
           new JProperty("bdy", new JObject(
-              new JProperty("uid", null),
+              new JProperty("uid", (object?)null),
               new JProperty("devType", 2001),
               new JProperty("accTkn", channel.AccessToken),
               new JProperty("auth", "READ")

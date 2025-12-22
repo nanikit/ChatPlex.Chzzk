@@ -6,7 +6,7 @@ namespace ChatPlex.Chzzk.Configuration
 {
   internal class PluginConfig
   {
-    public static PluginConfig Instance { get; set; }
+    public static PluginConfig Instance { get; set; } = null!;
 
     public virtual string ChannelId { get; set; } = "";
 

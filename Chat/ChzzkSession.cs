@@ -1,28 +1,23 @@
 using CP_SDK;
 using CP_SDK.Network;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Net;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace ChatPlex.Chzzk
 {
   [Serializable]
   public class SessionResponse
   {
-    [JsonProperty] public string url;
+    [JsonProperty] public string? url;
   }
 
   class ChzzkSession
   {
-    private string url = null;
-
-    private string token = null;
+    private string? url;
 
     private WebClientUnity m_WebClient = new WebClientUnity("https://openapi.chzzk.naver.com", TimeSpan.FromSeconds(10), true);
-    private WebClientCore m_WebClientCore = new WebClientCore("https://openapi.chzzk.naver.com", TimeSpan.FromSeconds(10), true);
 
     static public ChzzkSession Create()
     {
@@ -41,8 +36,8 @@ namespace ChatPlex.Chzzk
       {
         if (response.StatusCode == HttpStatusCode.OK)
         {
-          SessionResponse sessionResponse = JsonConvert.DeserializeObject<SessionResponse>(response.BodyString);
-          url = sessionResponse.url;
+          var sessionResponse = JsonConvert.DeserializeObject<SessionResponse>(response.BodyString);
+          url = sessionResponse?.url;
 
           Connect();
         }

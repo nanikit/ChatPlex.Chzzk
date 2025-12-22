@@ -9,7 +9,7 @@ namespace ChatPlex.Chzzk
   /// </summary>
   public class ChzzkController : MonoBehaviour
   {
-    public static ChzzkController Instance { get; private set; }
+    public static ChzzkController? Instance { get; private set; }
 
     // These methods are automatically called by Unity, you should remove any you aren't using.
     #region Monobehaviour Messages

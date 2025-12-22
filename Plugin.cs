@@ -10,8 +10,7 @@ namespace ChatPlex.Chzzk
   [Plugin(RuntimeOptions.SingleStartInit)]
   public class Plugin
   {
-    internal static Plugin Instance { get; private set; }
-    internal static IPALogger Log { get; private set; }
+    internal static IPALogger Log { get; private set; } = null!;
 
     [Init]
     /// <summary>
@@ -21,7 +20,6 @@ namespace ChatPlex.Chzzk
     /// </summary>
     public void Init(IPALogger logger, Config conf)
     {
-      Instance = this;
       Log = logger;
       PluginConfig.Instance = conf.Generated<PluginConfig>();
       Log.Info("ChatPlex.Chzzk initialized.");
