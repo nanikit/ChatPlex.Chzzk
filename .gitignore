@@ -8,3 +8,7 @@ bin/
 # User specific files
 *.user
 /.vscode/
+
+# Local files
+*.local
+*.local.*
