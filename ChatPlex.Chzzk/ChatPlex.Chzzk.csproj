@@ -8,7 +8,7 @@
     <RootNamespace>ChatPlex.Chzzk</RootNamespace>
     <AppOutputBase>$(MSBuildProjectDirectory)\</AppOutputBase>
     <Nullable>enable</Nullable>
-    <LocalRefsDir Condition="Exists('..\Refs')">..\Refs</LocalRefsDir>
+    <LocalRefsDir Condition="Exists('..\..\Refs')">..\..\Refs</LocalRefsDir>
     <BeatSaberDir>$(LocalRefsDir)</BeatSaberDir>
     <Product>ChatPlex.Chzzk</Product>
     <Company />
