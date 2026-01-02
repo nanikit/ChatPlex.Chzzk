@@ -19,15 +19,15 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <Configurations>Debug;Release</Configurations>
+    <OutputPath>bin\$(Configuration)</OutputPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' != 'Release'">
     <DebugSymbols>true</DebugSymbols>
     <DebugType>portable</DebugType>
-    <OutputPath>bin\Debug</OutputPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <DebugType>none</DebugType>
-    <OutputPath>bin\</OutputPath>
+    <Optimize Condition="'$(Optimize)' == ''">true</Optimize>
   </PropertyGroup>
   <PropertyGroup Condition="$(DefineConstants.Contains('CIBuild')) OR '$(NCrunch)' == '1'">
     <DisableCopyToPlugins>True</DisableCopyToPlugins>
@@ -36,6 +36,11 @@
     <DisableCopyToPlugins>True</DisableCopyToPlugins>
     <DisableZipRelease>True</DisableZipRelease>
   </PropertyGroup>
+
+  <Sdk Name="DotNet.ReproducibleBuilds.Isolated" Version="1.2.39" />
+  <ItemGroup>
+    <PackageReference Include="DotNet.ReproducibleBuilds" Version="1.2.39" PrivateAssets="All" />
+  </ItemGroup>
 
   <ItemGroup>
     <Reference Include="System" />
@@ -105,7 +110,7 @@
     <PluginId>ChatPlex.Chzzk</PluginId>
     <PluginName>ChatPlex.Chzzk</PluginName>
     <Description>Chzzk integration.</Description>
-    <Version>0.0.1</Version>
+    <Version>0.0.2</Version>
     <GameVersion>1.39.1</GameVersion>
   </PropertyGroup>
   <ItemGroup>
